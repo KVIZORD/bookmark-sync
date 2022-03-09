@@ -1,4 +1,5 @@
 import vk_api
+from vk_api.longpoll import VkLongPoll
 
 
 def auth_handler():
@@ -8,7 +9,7 @@ def auth_handler():
     return key, remember_device
 
 
-def get_vk_api(login: str, password: str):
+def get_profile_api(login: str, password: str):
     login = login
     password = password
 
@@ -24,5 +25,25 @@ def get_vk_api(login: str, password: str):
         return
 
     vk = vk_session.get_api()
+
     return vk
+
+
+def get_wall_by_id(session: vk_api.vk_api.VkApiMethod, owner_id: str, post_id: str):
+    posts = owner_id + '_' + post_id
+
+    response = session.wall.getById(posts=posts)
+
+    print(response)
+
+
+def get_longpoll(group_token: str):
+
+    session = vk_api.VkApi(token=group_token)
+    longpoll = VkLongPoll(session)
+
+    return longpoll
+
+
+
 
