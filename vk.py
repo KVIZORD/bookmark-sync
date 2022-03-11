@@ -1,8 +1,8 @@
 import vk_api
-from vk_api.longpoll import VkLongPoll
+import configparser
 
 
-def auth_handler():
+def auth_handler() -> tuple:
     key = input("Код авторизации: ")
     remember_device = True
 
@@ -24,26 +24,65 @@ def get_profile_api(login: str, password: str):
         print(error_msg)
         return
 
-    vk = vk_session.get_api()
+    profile_api = vk_session.get_api()
 
-    return vk
+    return profile_api
 
 
-def get_wall_by_id(session: vk_api.vk_api.VkApiMethod, owner_id: str, post_id: str):
-    posts = owner_id + '_' + post_id
-
+def get_post_by_id(session: vk_api.vk_api.VkApiMethod, posts: str):
     response = session.wall.getById(posts=posts)
-
-    print(response)
-
-
-def get_longpoll(group_token: str):
-
-    session = vk_api.VkApi(token=group_token)
-    longpoll = VkLongPoll(session)
-
-    return longpoll
+    return response
 
 
+def get_group_api(group_token: str):
+    token = group_token
+    session = vk_api.VkApi(token=token)
+    group_api = session.get_api()
+
+    return group_api
 
 
+def get_count_unread_messages(session: vk_api.vk_api.VkApiMethod, dialog_id: str):
+    dialog_list = session.messages.getConversations()
+    unread_count = 0
+
+    for dialog in dialog_list['items']:
+        if str(dialog['conversation']['peer']['id']) == dialog_id:
+            if 'unread_count' in dialog_list['items'][0]['conversation']:
+                unread_count = dialog_list['items'][0]['conversation']['unread_count']
+
+    return unread_count
+
+
+def get_filtered_messages(session: vk_api.vk_api.VkApiMethod, filters: list, count: int, dialog_id: str):
+    """Функция возвращает все сообщения, содержащие одну из подстрок filter. Отмечает их, как прочитанные"""
+
+    filtered_messages = []
+    message_history = session.messages.getHistory(count=count, user_id=dialog_id)
+    read_messages_id = []
+    for message in message_history['items']:
+        read_messages_id.append(message['id'])
+        for filter in filters:
+            if filter in message['text'].lower():
+                filtered_messages.append(message)
+
+    session.messages.markAsRead(peer_id=215916167, start_message_id=read_messages_id[0])
+
+    return filtered_messages
+
+
+def test():
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    token = config.get('auth_data', 'vk_group_token')
+    group_api = get_group_api(token)
+    user_id = config.get('auth_data', 'vk_id')
+    count = get_count_unread_messages(group_api, user_id)
+    if count != 0:
+        for i in get_filtered_messages(group_api, ['-з', '-p'], count, user_id):
+            print(i)
+    else:
+        print('Новых закладок не обнаружено')
+
+
+test()
